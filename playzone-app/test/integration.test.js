@@ -162,6 +162,29 @@ test("admin/master/player hierarchy, points ledger and account controls", async 
   }, secondMasterCookie);
   assert.equal(r.response.status, 201);
   const secondPlayerId = r.body.user.id;
+  r = await request(`/api/players/${secondPlayerId}/points`, {
+    method: "POST",
+    body: JSON.stringify({ amount: 25, note: "Second master credit" })
+  }, secondMasterCookie);
+  assert.equal(r.response.status, 200);
+
+  r = await request("/api/dashboard", {}, masterCookie);
+  assert.equal(r.body.history.length, 1, "a master sees only transactions for their own players");
+  assert.equal(r.body.history[0].to_user, "playerone");
+
+  r = await request("/api/players/" + playerId + "/points", {
+    method: "POST",
+    body: JSON.stringify({ amount: -40, note: "Test debit" })
+  }, masterCookie);
+  assert.equal(r.response.status, 200);
+  r = await request("/api/dashboard", {}, masterCookie);
+  assert.equal(r.body.players.find(p => p.id === playerId).balance, 60);
+  assert.equal(r.body.allocation.available, 440);
+  assert.equal(r.body.history.length, 2);
+  assert.equal(r.body.history[0].action, "PLAYER_DEBIT");
+
+  r = await request("/api/dashboard", {}, adminCookie);
+  assert.ok(r.body.ledger.some(x => x.to_user === "playertwo"), "Main Admin sees transactions across all masters");
 
   r = await request(`/api/accounts/${secondPlayerId}/status`, {
     method: "POST",
