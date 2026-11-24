@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS sessions(
  token_hash TEXT PRIMARY KEY,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
  expires_at INTEGER NOT NULL
 );
+CREATE UNIQUE INDEX IF NOT EXISTS one_main_admin ON users(role) WHERE role='admin';
 CREATE INDEX IF NOT EXISTS users_parent_idx ON users(parent_id);
 CREATE INDEX IF NOT EXISTS ledger_actor_idx ON ledger(actor_id,id DESC);
 `);
