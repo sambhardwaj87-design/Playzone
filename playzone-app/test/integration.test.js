@@ -86,7 +86,7 @@ test("admin/master/player hierarchy, points ledger and account controls", async 
 
   // Main Admin has an unlimited virtual-points reserve: allocations can
   // exceed the legacy one-million starter reserve without a cap.
-  r = await request("/api/admin/masters/1/allocation", {
+  r = await request(`/api/admin/masters/${masterId}/allocation`, {
     method: "POST",
     body: JSON.stringify({ amount: 2500000 })
   }, adminCookie);
