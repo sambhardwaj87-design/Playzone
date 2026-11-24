@@ -138,17 +138,6 @@ test("admin/master/player hierarchy, points ledger and account controls", async 
   r = await request("/api/dashboard", {}, playerCookie);
   assert.equal(r.response.status, 401, "password reset must revoke existing sessions");
 
-  r = await request(`/api/accounts/${playerId}/status`, {
-    method: "POST",
-    body: JSON.stringify({ active: false })
-  }, masterCookie);
-  assert.equal(r.response.status, 200);
-  r = await request("/api/login", {
-    method: "POST",
-    body: JSON.stringify({ username: "playerone", password: "NewPlayerPassword123" })
-  });
-  assert.equal(r.response.status, 401, "disabled players must not sign in");
-
   r = await request("/api/admin/masters", {
     method: "POST",
     body: JSON.stringify({ displayName: "Master Two", username: "mastertwo", password: "MasterPassword456", allocation: 100 })
@@ -192,6 +181,17 @@ test("admin/master/player hierarchy, points ledger and account controls", async 
   assert.equal(r.body.allocation.available, 440);
   assert.equal(r.body.history.length, 2);
   assert.equal(r.body.history[0].action, "PLAYER_DEBIT");
+
+  r = await request(`/api/accounts/${playerId}/status`, {
+    method: "POST",
+    body: JSON.stringify({ active: false })
+  }, masterCookie);
+  assert.equal(r.response.status, 200);
+  r = await request("/api/login", {
+    method: "POST",
+    body: JSON.stringify({ username: "playerone", password: "NewPlayerPassword123" })
+  });
+  assert.equal(r.response.status, 401, "disabled players must not sign in");
 
   r = await request("/api/dashboard", {}, adminCookie);
   assert.ok(r.body.ledger.some(x => x.to_user === "playertwo"), "Main Admin sees transactions across all masters");
