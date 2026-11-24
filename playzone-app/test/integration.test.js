@@ -124,12 +124,6 @@ test("admin/master/player hierarchy, points ledger and account controls", async 
   assert.equal(r.response.status, 200);
   assert.ok(r.body.ledger.some(x => x.action === "PLAYER_CREDIT"));
   assert.ok(r.body.ledger.some(x => x.action === "MASTER_ALLOCATION"));
-  csvResponse = await fetch(base + "/api/transactions.csv", { headers: { cookie: adminCookie } });
-  csvText = await csvResponse.text();
-  assert.equal(csvResponse.status, 200);
-  assert.match(csvText, /playerone/);
-  assert.match(csvText, /playertwo/, "Main Admin export must include transactions across masters");
-
   r = await request(`/api/accounts/${playerId}/password`, {
     method: "POST",
     body: JSON.stringify({ password: "NewPlayerPassword123" })
@@ -161,6 +155,12 @@ test("admin/master/player hierarchy, points ledger and account controls", async 
     body: JSON.stringify({ amount: 25, note: "Second master credit" })
   }, secondMasterCookie);
   assert.equal(r.response.status, 200);
+
+  csvResponse = await fetch(base + "/api/transactions.csv", { headers: { cookie: adminCookie } });
+  csvText = await csvResponse.text();
+  assert.equal(csvResponse.status, 200);
+  assert.match(csvText, /playerone/);
+  assert.match(csvText, /playertwo/, "Main Admin export must include transactions across masters");
 
   r = await request("/api/dashboard", {}, masterCookie);
   assert.equal(r.body.history.length, 1, "a master sees only transactions for their own players");
