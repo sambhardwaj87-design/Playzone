@@ -196,7 +196,7 @@ test("admin/master/player hierarchy, points ledger and account controls", async 
   assert.equal(r.response.status, 401, "disabled players must not sign in");
 
   r = await request("/api/dashboard", {}, adminCookie);
-  assert.ok(r.body.ledger.some(x => x.to_user === "playertwo"), "Main Admin sees transactions across all masters");
+  assert.ok(r.body.ledger.some(x => x.recipient === "playertwo"), "Main Admin sees transactions across all masters");
 
   r = await request(`/api/accounts/${secondPlayerId}/status`, {
     method: "POST",
