@@ -143,13 +143,12 @@ app.post("/api/admin/masters",auth,roles("admin"),(req,res)=>{
  if(!usernameOK(username)||!passwordOKFormat(password)||typeof displayName!=="string"||displayName.trim().length<2||!Number.isSafeInteger(allocation)||allocation<0)
   return res.status(400).json({error:"Invalid master details or allocation."});
  const reserve=Number(db.prepare("SELECT value FROM settings WHERE key='reserve'").get()?.value||0);
- if(allocation>reserve)return res.status(400).json({error:"Allocation exceeds Main Admin reserve."});
+
  try{
   const id=db.transaction(()=>{
    const r=db.prepare("INSERT INTO users(username,display_name,password_hash,role) VALUES(?,?,?,'master')")
     .run(username,displayName.trim().slice(0,60),passwordHash(password));
    db.prepare("INSERT INTO master_limits(master_id,allocated,available) VALUES(?,?,?)").run(r.lastInsertRowid,allocation,allocation);
-   db.prepare("UPDATE settings SET value=? WHERE key='reserve'").run(String(reserve-allocation));
    if(allocation)audit(req.user.id,null,r.lastInsertRowid,allocation,"MASTER_ALLOCATION","Initial master quota");
    return r.lastInsertRowid;
   })();
@@ -165,9 +164,7 @@ app.post("/api/admin/masters/:id/allocation",auth,roles("admin"),(req,res)=>{
   db.transaction(()=>{
    const reserve=Number(db.prepare("SELECT value FROM settings WHERE key='reserve'").get().value);
    if(limit.available+amount<0||limit.allocated+amount<0)throw Error("Cannot recall points already distributed.");
-   if(amount>reserve)throw Error("Insufficient Main Admin reserve.");
    db.prepare("UPDATE master_limits SET allocated=allocated+?,available=available+? WHERE master_id=?").run(amount,amount,id);
-   db.prepare("UPDATE settings SET value=? WHERE key='reserve'").run(String(reserve-amount));
    audit(req.user.id,null,id,Math.abs(amount),amount>0?"MASTER_ALLOCATION":"MASTER_RECALL","Admin quota adjustment");
   })();
   res.json({ok:true});
@@ -281,7 +278,7 @@ app.get("/api/dashboard",auth,(req,res)=>{
    (SELECT COUNT(*) FROM users p WHERE p.parent_id=u.id AND p.role='player') players
    FROM users u JOIN master_limits l ON l.master_id=u.id WHERE u.role='master' ORDER BY u.id DESC`).all();
   const ledger=db.prepare("SELECT l.*,a.username actor,f.username from_user,t.username recipient FROM ledger l JOIN users a ON a.id=l.actor_id LEFT JOIN users f ON f.id=l.from_user_id LEFT JOIN users t ON t.id=l.to_user_id ORDER BY l.id DESC LIMIT 100").all();
-  res.json({role:"admin",counts,reserve,masters,ledger});
+  res.json({role:"admin",counts,reserve:"UNLIMITED",masters,ledger});
  }else if(req.user.role==="master"){
   const allocation=db.prepare("SELECT * FROM master_limits WHERE master_id=?").get(req.user.id);
   const players=db.prepare("SELECT id,username,display_name,balance,active FROM users WHERE parent_id=? AND role='player' ORDER BY id DESC").all(req.user.id);
