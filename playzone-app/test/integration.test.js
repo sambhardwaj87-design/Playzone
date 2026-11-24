@@ -143,4 +143,39 @@ test("admin/master/player hierarchy, points ledger and account controls", async 
     body: JSON.stringify({ username: "playerone", password: "NewPlayerPassword123" })
   });
   assert.equal(r.response.status, 401, "disabled players must not sign in");
+
+  r = await request("/api/admin/masters", {
+    method: "POST",
+    body: JSON.stringify({ displayName: "Master Two", username: "mastertwo", password: "MasterPassword456", allocation: 100 })
+  }, adminCookie);
+  assert.equal(r.response.status, 201, JSON.stringify(r.body));
+  r = await request("/api/login", {
+    method: "POST",
+    body: JSON.stringify({ username: "mastertwo", password: "MasterPassword456" })
+  });
+  assert.equal(r.response.status, 200);
+  const secondMasterCookie = r.setCookie.split(";")[0];
+  r = await request("/api/players", {
+    method: "POST",
+    body: JSON.stringify({ displayName: "Player Two", username: "playertwo", password: "PlayerPassword456", startingBalance: 0 })
+  }, secondMasterCookie);
+  assert.equal(r.response.status, 201);
+  const secondPlayerId = r.body.user.id;
+
+  r = await request(`/api/accounts/${secondPlayerId}/status`, {
+    method: "POST",
+    body: JSON.stringify({ active: false })
+  }, masterCookie);
+  assert.equal(r.response.status, 403, "a master cannot manage another master's player");
+
+  r = await request(`/api/accounts/${r.body.user.parentId}/status`, {
+    method: "POST",
+    body: JSON.stringify({ active: false })
+  }, adminCookie);
+  assert.equal(r.response.status, 200);
+  r = await request("/api/login", {
+    method: "POST",
+    body: JSON.stringify({ username: "playertwo", password: "PlayerPassword456" })
+  });
+  assert.equal(r.response.status, 401, "players cannot sign in while their master is disabled");
 });
