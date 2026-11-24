@@ -84,6 +84,14 @@ test("admin/master/player hierarchy, points ledger and account controls", async 
   assert.equal(r.response.status, 201, JSON.stringify(r.body));
   const masterId = r.body.user.id;
 
+  // Main Admin has an unlimited virtual-points reserve: allocations can
+  // exceed the legacy one-million starter reserve without a cap.
+  r = await request("/api/admin/masters/1/allocation", {
+    method: "POST",
+    body: JSON.stringify({ amount: 2500000 })
+  }, adminCookie);
+  assert.equal(r.response.status, 200, JSON.stringify(r.body));
+
   r = await request("/api/login", {
     method: "POST",
     body: JSON.stringify({ username: "masterone", password: "MasterPassword123" })
