@@ -88,7 +88,8 @@ function auth(req,res,next){
   const token=getCookie(req);
   if(!token)return res.status(401).json({error:"Please sign in."});
   const u=db.prepare(`SELECT u.id,u.username,u.display_name,u.role,u.parent_id,u.balance,u.active
-    FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?`).get(hash(token),Date.now());
+    FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?
+    AND (u.role<>'player' OR EXISTS(SELECT 1 FROM users p WHERE p.id=u.parent_id AND p.active=1))`).get(hash(token),Date.now());
   if(!u||!u.active)return res.status(401).json({error:"Session expired or account disabled."});
   req.user=u;next();
 }
@@ -127,7 +128,7 @@ app.post("/api/setup",throttle(5,15*60*1000),(req,res)=>{
 app.post("/api/login",throttle(10,15*60*1000),(req,res)=>{
  const {username,password}=req.body||{};
  const u=db.prepare("SELECT * FROM users WHERE username=? COLLATE NOCASE").get(String(username||""));
- if(!u||!u.active||typeof password!=="string"||!passwordOK(password,u.password_hash))return res.status(401).json({error:"Invalid username or password."});
+ if(!u||!u.active||(u.role==="player"&&!db.prepare("SELECT active FROM users WHERE id=?").get(u.parent_id)?.active)||typeof password!=="string"||!passwordOK(password,u.password_hash))return res.status(401).json({error:"Invalid username or password."});
  loginSession(u.id,res);res.json({user:safe(u)});
 });
 app.post("/api/logout",auth,(req,res)=>{
@@ -251,7 +252,7 @@ app.get("/api/dashboard",auth,(req,res)=>{
   const masters=db.prepare(`SELECT u.id,u.username,u.display_name,u.active,l.allocated,l.available,
    (SELECT COUNT(*) FROM users p WHERE p.parent_id=u.id AND p.role='player') players
    FROM users u JOIN master_limits l ON l.master_id=u.id WHERE u.role='master' ORDER BY u.id DESC`).all();
-  const ledger=db.prepare("SELECT l.*,a.username actor,t.username recipient FROM ledger l JOIN users a ON a.id=l.actor_id LEFT JOIN users t ON t.id=l.to_user_id ORDER BY l.id DESC LIMIT 40").all();
+  const ledger=db.prepare("SELECT l.*,a.username actor,f.username from_user,t.username recipient FROM ledger l JOIN users a ON a.id=l.actor_id LEFT JOIN users f ON f.id=l.from_user_id LEFT JOIN users t ON t.id=l.to_user_id ORDER BY l.id DESC LIMIT 100").all();
   res.json({role:"admin",counts,reserve,masters,ledger});
  }else if(req.user.role==="master"){
   const allocation=db.prepare("SELECT * FROM master_limits WHERE master_id=?").get(req.user.id);
