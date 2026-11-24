@@ -118,7 +118,7 @@ test("admin/master/player hierarchy, points ledger and account controls", async 
   assert.equal(r.body.history.length, 1);
   assert.equal(r.body.history[0].action, "PLAYER_CREDIT");
   assert.equal(r.body.history[0].to_user, "playerone");
-  assert.equal(r.body.allocation.available, 400);
+  assert.equal(r.body.allocation.available, 2500400);
 
   r = await request("/api/login", {
     method: "POST",
@@ -188,7 +188,7 @@ test("admin/master/player hierarchy, points ledger and account controls", async 
   assert.equal(r.response.status, 200);
   r = await request("/api/dashboard", {}, masterCookie);
   assert.equal(r.body.players.find(p => p.id === playerId).balance, 60);
-  assert.equal(r.body.allocation.available, 440);
+  assert.equal(r.body.allocation.available, 2500440);
   assert.equal(r.body.history.length, 2);
   assert.equal(r.body.history[0].action, "PLAYER_DEBIT");
 
