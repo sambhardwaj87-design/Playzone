@@ -149,6 +149,7 @@ test("admin/master/player hierarchy, points ledger and account controls", async 
     body: JSON.stringify({ displayName: "Master Two", username: "mastertwo", password: "MasterPassword456", allocation: 100 })
   }, adminCookie);
   assert.equal(r.response.status, 201, JSON.stringify(r.body));
+  const secondMasterId = r.body.user.id;
   r = await request("/api/login", {
     method: "POST",
     body: JSON.stringify({ username: "mastertwo", password: "MasterPassword456" })
@@ -168,7 +169,7 @@ test("admin/master/player hierarchy, points ledger and account controls", async 
   }, masterCookie);
   assert.equal(r.response.status, 403, "a master cannot manage another master's player");
 
-  r = await request(`/api/accounts/${r.body.user.parentId}/status`, {
+  r = await request(`/api/accounts/${secondMasterId}/status`, {
     method: "POST",
     body: JSON.stringify({ active: false })
   }, adminCookie);
