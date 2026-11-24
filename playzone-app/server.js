@@ -34,7 +34,7 @@ setInterval(()=>{
  for(const [key,value] of attempts)if(now-value.start>=15*60*1000)attempts.delete(key);
  db.prepare("DELETE FROM sessions WHERE expires_at<=?").run(now);
 },15*60*1000).unref();
-const dbFile=process.env.DATABASE_FILE||"./data/playzone.sqlite";
+const dbFile=process.env.DATABASE_FILE||(process.env.VERCEL?"/tmp/playzone.sqlite":path.join(__dirname,"data","playzone.sqlite"));
 fs.mkdirSync(path.dirname(dbFile),{recursive:true});
 const db=new Database(dbFile);
 db.pragma("journal_mode = WAL");
