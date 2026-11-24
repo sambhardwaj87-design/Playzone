@@ -215,6 +215,34 @@ app.post("/api/players/:id/points",auth,roles("admin","master"),(req,res)=>{
   })();res.json({ok:true});
  }catch(e){res.status(400).json({error:e.message});}
 });
+// Account administration. Main Admin can manage all accounts; Masters are
+// restricted to their own players. Disabling an account revokes its sessions.
+app.post("/api/accounts/:id/status",auth,roles("admin","master"),(req,res)=>{
+ const id=Number(req.params.id), active=req.body?.active;
+ if(!Number.isInteger(id)||typeof active!=="boolean")return res.status(400).json({error:"Invalid account status."});
+ const target=db.prepare("SELECT id,role,parent_id FROM users WHERE id=?").get(id);
+ if(!target || target.role==="admin")return res.status(404).json({error:"Account not found."});
+ if(req.user.role==="master"&&(target.role!=="player"||target.parent_id!==req.user.id))
+  return res.status(403).json({error:"You can only manage your own players."});
+ db.transaction(()=>{
+  db.prepare("UPDATE users SET active=? WHERE id=?").run(active?1:0,id);
+  if(!active)db.prepare("DELETE FROM sessions WHERE user_id=?").run(id);
+ })();
+ res.json({ok:true,active});
+});
+app.post("/api/accounts/:id/password",auth,roles("admin","master"),(req,res)=>{
+ const id=Number(req.params.id),password=req.body?.password;
+ if(!Number.isInteger(id)||!passwordOKFormat(password))return res.status(400).json({error:"Password must be at least 10 characters."});
+ const target=db.prepare("SELECT id,role,parent_id FROM users WHERE id=?").get(id);
+ if(!target||target.role==="admin")return res.status(404).json({error:"Account not found."});
+ if(req.user.role==="master"&&(target.role!=="player"||target.parent_id!==req.user.id))
+  return res.status(403).json({error:"You can only manage your own players."});
+ db.transaction(()=>{
+  db.prepare("UPDATE users SET password_hash=? WHERE id=?").run(passwordHash(password),id);
+  db.prepare("DELETE FROM sessions WHERE user_id=?").run(id);
+ })();
+ res.json({ok:true});
+});
 app.get("/api/dashboard",auth,(req,res)=>{
  if(req.user.role==="admin"){
   const counts=db.prepare("SELECT COUNT(*) total,SUM(role='master') masters,SUM(role='player') players FROM users").get();
