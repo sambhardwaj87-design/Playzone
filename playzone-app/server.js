@@ -245,6 +245,34 @@ app.post("/api/accounts/:id/password",auth,roles("admin","master"),(req,res)=>{
  })();
  res.json({ok:true});
 });
+app.get("/api/transactions.csv",auth,(req,res)=>{
+ let rows;
+ const select=`SELECT l.id,l.created_at,l.action,l.amount,l.note,a.username actor,
+   f.username from_user,t.username to_user
+   FROM ledger l JOIN users a ON a.id=l.actor_id
+   LEFT JOIN users f ON f.id=l.from_user_id
+   LEFT JOIN users t ON t.id=l.to_user_id`;
+ if(req.user.role==="admin"){
+  rows=db.prepare(select+" ORDER BY l.id DESC").all();
+ }else if(req.user.role==="master"){
+  rows=db.prepare(select+` WHERE
+   l.from_user_id IN (SELECT id FROM users WHERE parent_id=? AND role='player')
+   OR l.to_user_id IN (SELECT id FROM users WHERE parent_id=? AND role='player')
+   ORDER BY l.id DESC`).all(req.user.id,req.user.id);
+ }else{
+  rows=db.prepare(select+" WHERE l.from_user_id=? OR l.to_user_id=? ORDER BY l.id DESC").all(req.user.id,req.user.id);
+ }
+ const cell=value=>{
+  let text=String(value??"");
+  if(/^[=+@\\-\\t\\r]/.test(text))text="'"+text;
+  return '"'+text.replace(/"/g,'""')+'"';
+ };
+ const columns=["id","created_at","action","actor","from_user","to_user","amount","note"];
+ const lines=[columns.join(","),...rows.map(row=>columns.map(key=>cell(row[key])).join(","))];
+ res.setHeader("Content-Type","text/csv; charset=utf-8");
+ res.setHeader("Content-Disposition",`attachment; filename="playzone-transactions-${req.user.role}.csv"`);
+ res.send("\\uFEFF"+lines.join("\\r\\n"));
+});
 app.get("/api/dashboard",auth,(req,res)=>{
  if(req.user.role==="admin"){
   const counts=db.prepare("SELECT COUNT(*) total,SUM(role='master') masters,SUM(role='player') players FROM users").get();
