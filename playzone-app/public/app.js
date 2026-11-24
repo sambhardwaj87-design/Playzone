@@ -59,3 +59,22 @@ $("#loginForm").onsubmit=async e=>{e.preventDefault();say("Signing in…");try{a
 $("#setupForm").onsubmit=async e=>{e.preventDefault();say("Creating Main Admin…");try{await api("/api/setup",{method:"POST",body:JSON.stringify(values(e.target))});e.target.reset();await refresh()}catch(x){say(x.message)}};
 $("#logout").onclick=async()=>{await api("/api/logout",{method:"POST"});$("#dash").hidden=true;$("#login").hidden=false;$("#intro").hidden=false;say("Signed out.")};
 (async()=>{try{const s=await api("/api/setup-status");if(s.needsAdmin){$("#loginForm").hidden=true;$("#setupForm").hidden=false}try{await refresh()}catch{}}catch(e){say(e.message)}})();
+
+
+// Installable Progressive Web App support.
+let installPrompt=null;
+window.addEventListener("beforeinstallprompt",event=>{
+ event.preventDefault();
+ installPrompt=event;
+ const button=$("#installApp");
+ if(button){button.hidden=false;button.onclick=async()=>{
+  if(!installPrompt)return;
+  installPrompt.prompt();
+  await installPrompt.userChoice;
+  installPrompt=null;
+  button.hidden=true;
+ };}
+});
+if("serviceWorker" in navigator){
+ window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
+}
