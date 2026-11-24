@@ -35,6 +35,8 @@ test("admin/master/player hierarchy, points ledger and account controls", async 
   let adminCookie = "";
   let masterCookie = "";
   let playerCookie = "";
+  let csvResponse;
+  let csvText;
 
   async function request(route, options = {}, cookie = "") {
     const headers = { "content-type": "application/json", ...(options.headers || {}) };
@@ -165,8 +167,8 @@ test("admin/master/player hierarchy, points ledger and account controls", async 
   r = await request("/api/dashboard", {}, masterCookie);
   assert.equal(r.body.history.length, 1, "a master sees only transactions for their own players");
   assert.equal(r.body.history[0].to_user, "playerone");
-  let csvResponse = await fetch(base + "/api/transactions.csv", { headers: { cookie: masterCookie } });
-  let csvText = await csvResponse.text();
+  csvResponse = await fetch(base + "/api/transactions.csv", { headers: { cookie: masterCookie } });
+  csvText = await csvResponse.text();
   assert.equal(csvResponse.status, 200);
   assert.match(csvText, /playerone/);
   assert.doesNotMatch(csvText, /playertwo/, "master CSV export must not expose another master's player");
