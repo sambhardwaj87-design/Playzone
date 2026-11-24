@@ -11,8 +11,29 @@ app.use((req,res,next)=>{
   res.setHeader("X-Content-Type-Options","nosniff");
   res.setHeader("X-Frame-Options","DENY");
   res.setHeader("Referrer-Policy","no-referrer");
+  res.setHeader("Content-Security-Policy","default-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
+  if(req.path.startsWith("/api/")) res.setHeader("Cache-Control","no-store");
   next();
 });
+
+// Basic per-process throttling for sensitive unauthenticated endpoints.
+// Use a shared store (for example Redis) if deploying multiple app instances.
+const attempts=new Map();
+function throttle(max,windowMs){
+ return (req,res,next)=>{
+  const key=req.ip+"|"+req.path, now=Date.now();
+  let entry=attempts.get(key);
+  if(!entry||now-entry.start>=windowMs){entry={start:now,count:0};attempts.set(key,entry);}
+  entry.count++;
+  if(entry.count>max)return res.status(429).json({error:"Too many attempts. Please wait and try again."});
+  next();
+ };
+}
+setInterval(()=>{
+ const now=Date.now();
+ for(const [key,value] of attempts)if(now-value.start>=15*60*1000)attempts.delete(key);
+ db.prepare("DELETE FROM sessions WHERE expires_at<=?").run(now);
+},15*60*1000).unref();
 const dbFile=process.env.DATABASE_FILE||"./data/playzone.sqlite";
 fs.mkdirSync(path.dirname(dbFile),{recursive:true});
 const db=new Database(dbFile);
@@ -88,7 +109,7 @@ const adminExists=()=>!!db.prepare("SELECT 1 FROM users WHERE role='admin' LIMIT
 
 app.get("/api/health",(req,res)=>res.json({ok:true,app:"PLAYZONE"}));
 app.get("/api/setup-status",(req,res)=>res.json({needsAdmin:!adminExists()}));
-app.post("/api/setup",(req,res)=>{
+app.post("/api/setup",throttle(5,15*60*1000),(req,res)=>{
  const {setupKey,username,displayName,password}=req.body||{};
  if(adminExists())return res.status(409).json({error:"Main Admin already exists."});
  if(!process.env.INITIAL_SETUP_KEY || setupKey!==process.env.INITIAL_SETUP_KEY)return res.status(403).json({error:"Invalid setup key. Configure INITIAL_SETUP_KEY in the Codespace environment."});
@@ -102,7 +123,7 @@ app.post("/api/setup",(req,res)=>{
   res.status(201).json({user:safe(db.prepare("SELECT * FROM users WHERE id=?").get(r.lastInsertRowid))});
  }catch(e){res.status(400).json({error:"Could not create Main Admin. Username may already exist."});}
 });
-app.post("/api/login",(req,res)=>{
+app.post("/api/login",throttle(10,15*60*1000),(req,res)=>{
  const {username,password}=req.body||{};
  const u=db.prepare("SELECT * FROM users WHERE username=? COLLATE NOCASE").get(String(username||""));
  if(!u||!u.active||typeof password!=="string"||!passwordOK(password,u.password_hash))return res.status(401).json({error:"Invalid username or password."});
