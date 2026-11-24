@@ -264,14 +264,14 @@ app.get("/api/transactions.csv",auth,(req,res)=>{
  }
  const cell=value=>{
   let text=String(value??"");
-  if(/^[=+@\\-\\t\\r]/.test(text))text="'"+text;
+  if(/^[=+\-@\t\r]/.test(text))text="'"+text;
   return '"'+text.replace(/"/g,'""')+'"';
  };
  const columns=["id","created_at","action","actor","from_user","to_user","amount","note"];
  const lines=[columns.join(","),...rows.map(row=>columns.map(key=>cell(row[key])).join(","))];
  res.setHeader("Content-Type","text/csv; charset=utf-8");
  res.setHeader("Content-Disposition",`attachment; filename="playzone-transactions-${req.user.role}.csv"`);
- res.send("\\uFEFF"+lines.join("\\r\\n"));
+ res.send("\uFEFF"+lines.join("\r\n"));
 });
 app.get("/api/dashboard",auth,(req,res)=>{
  if(req.user.role==="admin"){
