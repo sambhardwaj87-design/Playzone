@@ -17,7 +17,7 @@ async function freePort() {
   });
 }
 
-test("admin/master/player hierarchy, points ledger and account controls", async t => {
+test("admin/master/player hierarchy, points ledger and account controls", { skip: !process.env.TEST_DATABASE_URL }, async t => {
   const root = path.join(__dirname, "..");
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "playzone-test-"));
   const port = await freePort();
@@ -25,7 +25,7 @@ test("admin/master/player hierarchy, points ledger and account controls", async 
   const env = {
     ...process.env,
     PORT: String(port),
-    DATABASE_FILE: path.join(temp, "playzone.sqlite"),
+    DATABASE_URL: process.env.TEST_DATABASE_URL,
     INITIAL_SETUP_KEY: setupKey,
     SESSION_SECRET: "test-session-secret-at-least-32-characters-long",
     NODE_ENV: "test"
