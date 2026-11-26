@@ -1,5 +1,6 @@
 const express = require("express");
-const { Pool } = require("@neondatabase/serverless");
+const { Pool, types } = require("pg");
+types.setTypeParser(20, value => Number(value));
 const crypto = require("node:crypto");
 const path = require("node:path");
 
@@ -69,7 +70,7 @@ async function adminExists() {
   return (await pool.query("SELECT 1 FROM users WHERE role='admin' LIMIT 1")).rowCount > 0;
 }
 async function initDatabase() {
-  await pool.query(`
+  const schema = `
     CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS users(
       id BIGSERIAL PRIMARY KEY, username TEXT NOT NULL UNIQUE,
@@ -96,7 +97,10 @@ async function initDatabase() {
     CREATE INDEX IF NOT EXISTS users_parent_idx ON users(parent_id);
     CREATE INDEX IF NOT EXISTS ledger_actor_idx ON ledger(actor_id,id DESC);
     CREATE INDEX IF NOT EXISTS sessions_expiry_idx ON sessions(expires_at);
-  `);
+  `;
+  for (const statement of schema.split(";").map(part => part.trim()).filter(Boolean)) {
+    await pool.query(statement);
+  }
   await pool.query("INSERT INTO settings(key,value) VALUES('reserve','1000000') ON CONFLICT(key) DO NOTHING");
 }
 const asyncRoute = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
