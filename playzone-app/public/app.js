@@ -97,3 +97,76 @@ window.addEventListener("beforeinstallprompt",event=>{
 if("serviceWorker" in navigator){
  window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
 }
+
+
+// PLAYZONE Cricket Centre — live fixtures and match detail, with no wagering features.
+function cricketTeam(match, side) {
+  const key = side === "home" ? "localteam" : "visitorteam";
+  const team = match?.[key]?.data || match?.[key] || {};
+  return team.name || team.code || (side === "home" ? "Home team" : "Away team");
+}
+function cricketScore(match) {
+  const runs = match?.runs?.data || match?.runs || [];
+  if (Array.isArray(runs) && runs.length) {
+    return runs.map(x => {
+      const score = x.score ?? x.total ?? "";
+      const wickets = x.wickets ?? "";
+      const overs = x.overs ?? "";
+      return [score !== "" ? score + (wickets !== "" ? "/" + wickets : "") : "", overs !== "" ? "(" + overs + " ov)" : ""].filter(Boolean).join(" ");
+    }).filter(Boolean).join(" · ");
+  }
+  const boards = match?.scoreboards?.data || match?.scoreboards || [];
+  if (Array.isArray(boards) && boards.length) return boards.map(x => [x.total ?? x.score, x.wickets != null ? "/" + x.wickets : "", x.overs != null ? "(" + x.overs + " ov)" : ""].join("")).join(" · ");
+  return "Score not available yet";
+}
+function cricketDate(match) {
+  const raw = match.starting_at || match.start_at || match.date || "";
+  if (!raw) return match.status || "Scheduled";
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? String(raw) : d.toLocaleString();
+}
+async function loadCricketCentre() {
+  const hub = $("#liveHub");
+  if (!hub) return;
+  hub.innerHTML = '<small>PLAYZONE LIVE CENTRE · CRICKET</small><div class="row cricket-heading"><div><h2>Live & upcoming matches</h2><p class="muted">International and domestic cricket, together in one place.</p></div><button id="cricketRefresh" class="ghost">Refresh</button></div><div id="cricketStatus" class="mini">Checking cricket data connection…</div><div id="cricketMatches" class="cricket-list"></div><div id="cricketDetail" class="cricket-detail"></div>';
+  const status = $("#cricketStatus"), list = $("#cricketMatches");
+  try {
+    const state = await api("/api/cricket/status");
+    if (!state.configured) { status.textContent = state.message || "Cricket provider token is not configured."; return; }
+    status.textContent = "Data provider connected · Sportmonks Cricket";
+    const data = await api("/api/cricket/matches/live");
+    const matches = Array.isArray(data.matches) ? data.matches : [];
+    if (!matches.length) { list.innerHTML = '<div class="item"><b>No live matches returned right now.</b><p class="mini">Check again later or browse upcoming fixtures when that endpoint is added.</p></div>'; return; }
+    list.innerHTML = matches.map(m => '<button class="cricket-match" data-cricket-id="' + encodeURIComponent(m.id) + '"><span class="cricket-league">' + esc(m.league?.data?.name || m.league?.name || m.season?.data?.name || "Cricket") + '</span><span class="cricket-teams">' + esc(cricketTeam(m,"home")) + ' <small>vs</small> ' + esc(cricketTeam(m,"away")) + '</span><strong>' + esc(cricketScore(m)) + '</strong><span class="mini">' + esc(m.status || cricketDate(m)) + '</span></button>').join("");
+    list.querySelectorAll("[data-cricket-id]").forEach(button => button.addEventListener("click", () => showCricketMatch(decodeURIComponent(button.dataset.cricketId))));
+  } catch (error) {
+    status.textContent = error.message.includes("sign in") ? "Sign in to view your private group’s live cricket centre." : "Cricket data unavailable: " + error.message;
+  }
+  const refresh = $("#cricketRefresh");
+  if (refresh) refresh.onclick = loadCricketCentre;
+}
+async function showCricketMatch(id) {
+  const target = $("#cricketDetail");
+  if (!target) return;
+  target.innerHTML = '<p class="mini">Loading match details…</p>';
+  try {
+    const result = await api("/api/cricket/matches/" + encodeURIComponent(id));
+    const match = result.match || {};
+    const blocks = ["scoreboards","runs","batting","bowling","balls","lineup"].map(key => {
+      const value = match[key]?.data || match[key];
+      if (!value || (Array.isArray(value) && !value.length)) return "";
+      const rows = Array.isArray(value) ? value : [value];
+      return '<section class="score-block"><h4>' + esc(key.charAt(0).toUpperCase()+key.slice(1)) + '</h4>' + rows.slice(0,30).map(row => '<div class="mini score-row">' + esc([row.name,row.player?.data?.fullname || row.player?.fullname,row.score,row.total,row.wickets,row.overs,row.ball,row.runs,row.commentary].filter(x=>x!==undefined&&x!==null&&x!=="").join(" · ") || JSON.stringify(row)) + '</div>').join("") + '</section>';
+    }).join("");
+    target.innerHTML = '<section class="card"><div class="row"><h3>' + esc(cricketTeam(match,"home")) + ' vs ' + esc(cricketTeam(match,"away")) + '</h3><button id="closeCricketDetail" class="ghost">Close</button></div><p class="muted">' + esc(match.league?.data?.name || match.league?.name || "Cricket") + ' · ' + esc(match.status || cricketDate(match)) + '</p><h3>' + esc(cricketScore(match)) + '</h3>' + (blocks || '<p class="mini">Detailed scorecard has not been supplied for this match.</p>') + '</section>';
+    $("#closeCricketDetail").onclick = () => { target.innerHTML = ""; };
+  } catch (error) { target.innerHTML = '<p class="mini">Could not load match details: ' + esc(error.message) + '</p>'; }
+}
+let cricketRefreshTimer = null;
+const originalRefreshForCricket = refresh;
+refresh = async function() {
+  await originalRefreshForCricket();
+  await loadCricketCentre();
+  if (cricketRefreshTimer) clearInterval(cricketRefreshTimer);
+  cricketRefreshTimer = setInterval(() => { if (!document.hidden && !$("#dash").hidden) loadCricketCentre(); }, 30000);
+};
