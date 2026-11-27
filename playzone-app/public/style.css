@@ -8,3 +8,5 @@
 header .brand{text-decoration:none;color:var(--txt)}
 header .brand:hover{opacity:.9}
 @media(max-width:600px){header{align-items:flex-start;flex-wrap:wrap}.tag{font-size:9px}}
+
+.cricket-heading{align-items:flex-start;margin:10px 0 16px}.cricket-heading h2{margin:5px 0;font-size:clamp(23px,4vw,32px)}.cricket-heading p{margin:0}.cricket-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-top:14px}.cricket-match{text-align:left;display:grid;gap:7px;padding:15px;background:#0b192a;color:var(--txt);border:1px solid var(--line);border-radius:13px}.cricket-match:hover{border-color:var(--mint);transform:translateY(-1px)}.cricket-match .cricket-league{color:var(--mint);font-size:11px;text-transform:uppercase;letter-spacing:1px}.cricket-teams{font-size:16px;font-weight:750}.cricket-teams small{color:var(--muted);font-size:11px}.cricket-match strong{font-size:14px}.cricket-detail{margin-top:15px}.score-block{border-top:1px solid var(--line);padding:10px 0}.score-block h4{margin:4px 0 8px;text-transform:capitalize}.score-row{padding:4px 0;overflow-wrap:anywhere}
