@@ -184,7 +184,7 @@ app.post("/api/admin/masters/:id/allocation", roles("admin"), asyncRoute(async (
     res.json({ ok: true });
   } catch (e) { res.status(400).json({ error: e.message }); }
 }));
-app.post("/api/players", roles("admin", "master"), asyncRoute(async (req, res) => {
+app.post("/api/players", roles("master"), asyncRoute(async (req, res) => {
   const { username, displayName, password, startingBalance = 0, masterId } = req.body || {};
   if (!usernameOK(username) || !passwordOKFormat(password) || typeof displayName !== "string" || displayName.trim().length < 2 || !Number.isSafeInteger(startingBalance) || startingBalance < 0)
     return res.status(400).json({ error: "Invalid player details." });
@@ -205,7 +205,7 @@ app.post("/api/players", roles("admin", "master"), asyncRoute(async (req, res) =
     res.status(201).json({ user: safe(user) });
   } catch (e) { res.status(400).json({ error: e.message === "duplicate key value violates unique constraint \"users_username_key\"" ? "Username may already exist." : e.message }); }
 }));
-app.post("/api/players/:id/points", roles("admin", "master"), asyncRoute(async (req, res) => {
+app.post("/api/players/:id/points", roles("master"), asyncRoute(async (req, res) => {
   const id = Number(req.params.id), amount = req.body?.amount, note = req.body?.note || "";
   if (!Number.isInteger(id) || !Number.isSafeInteger(amount) || amount === 0 || Math.abs(amount) > 100000000) return res.status(400).json({ error: "Enter a non-zero whole-number adjustment." });
   try {
@@ -235,6 +235,7 @@ app.post("/api/accounts/:id/status", roles("admin", "master"), asyncRoute(async 
   if (!Number.isInteger(id) || typeof active !== "boolean") return res.status(400).json({ error: "Invalid account status." });
   const r = await pool.query("SELECT id,role,parent_id FROM users WHERE id=$1", [id]), target = r.rows[0];
   if (!target || target.role === "admin") return res.status(404).json({ error: "Account not found." });
+  if (req.user.role === "admin" && target.role !== "master") return res.status(403).json({ error: "Main Admin can manage Master accounts only." });
   if (req.user.role === "master" && (target.role !== "player" || Number(target.parent_id) !== Number(req.user.id))) return res.status(403).json({ error: "You can only manage your own players." });
   await inTransaction(async c => { await c.query("UPDATE users SET active=$1 WHERE id=$2", [active, id]); if (!active) await c.query("DELETE FROM sessions WHERE user_id=$1", [id]); });
   res.json({ ok: true, active });
