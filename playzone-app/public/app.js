@@ -59,7 +59,7 @@ $("#loginForm").onsubmit=async e=>{e.preventDefault();say("Signing in…");try{a
 $("#setupForm").onsubmit=async e=>{e.preventDefault();say("Creating Main Admin…");try{await api("/api/setup",{method:"POST",body:JSON.stringify(values(e.target))});e.target.reset();await refresh()}catch(x){say(x.message)}};
 $("#logout").onclick=async()=>{await api("/api/logout",{method:"POST"});$("#dash").hidden=true;$("#login").hidden=false;$("#intro").hidden=false;say("Signed out.")};
 (async()=>{
- const isSetupPage=window.location.pathname.replace(/\\/$/,"")==="/setup";
+ const isSetupPage=window.location.pathname.replace(/\/$/,"")==="/setup";
  try{
   const s=await api("/api/setup-status");
   if(isSetupPage && s.needsAdmin){
