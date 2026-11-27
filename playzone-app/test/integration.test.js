@@ -123,6 +123,9 @@ test("admin/master/player hierarchy, points ledger and account controls", { skip
     body: JSON.stringify({ password: "AdminResetPassword123" })
   }, adminCookie);
   assert.equal(r.response.status, 200, "Main Admin can reset any Player password");
+  // The reset revokes the Player's sessions, not the Admin's session.
+  r = await request("/api/dashboard", {}, adminCookie);
+  assert.equal(r.response.status, 200, "Admin session remains valid after resetting a Player password");
   r = await request(`/api/accounts/${playerId}/status`, {
     method: "POST",
     body: JSON.stringify({ active: false })
