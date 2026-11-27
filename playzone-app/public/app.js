@@ -58,7 +58,26 @@ esc(x.created_at || "") +
 $("#loginForm").onsubmit=async e=>{e.preventDefault();say("Signing in…");try{await api("/api/login",{method:"POST",body:JSON.stringify(values(e.target))});e.target.reset();await refresh()}catch(x){say(x.message)}};
 $("#setupForm").onsubmit=async e=>{e.preventDefault();say("Creating Main Admin…");try{await api("/api/setup",{method:"POST",body:JSON.stringify(values(e.target))});e.target.reset();await refresh()}catch(x){say(x.message)}};
 $("#logout").onclick=async()=>{await api("/api/logout",{method:"POST"});$("#dash").hidden=true;$("#login").hidden=false;$("#intro").hidden=false;say("Signed out.")};
-(async()=>{try{const s=await api("/api/setup-status");if(s.needsAdmin){$("#loginForm").hidden=true;$("#setupForm").hidden=false}try{await refresh()}catch{}}catch(e){say(e.message)}})();
+(async()=>{
+ const isSetupPage=window.location.pathname.replace(/\\/$/,"")==="/setup";
+ try{
+  const s=await api("/api/setup-status");
+  if(isSetupPage && s.needsAdmin){
+   $("#loginForm").hidden=true;
+   $("#setupForm").hidden=false;
+   $("#intro").hidden=true;
+   $("#liveHub").hidden=true;
+  }else{
+   $("#setupForm").hidden=true;
+   $("#loginForm").hidden=false;
+   if(isSetupPage && !s.needsAdmin){
+    $("#login").hidden=false;
+    say("Main Admin is already configured. Please sign in from the home page.");
+   }
+  }
+  try{await refresh()}catch{}
+ }catch(e){say(e.message)}
+})();
 
 
 // Installable Progressive Web App support.
