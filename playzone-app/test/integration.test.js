@@ -158,7 +158,7 @@ test("admin/master/player hierarchy, points ledger and account controls", { skip
 
   r = await request("/api/login", {
     method: "POST",
-    body: JSON.stringify({ username: "playerone", password: "PlayerPassword123" })
+    body: JSON.stringify({ username: "playerone", password: "AdminResetPassword123" })
   });
   assert.equal(r.response.status, 200);
   playerCookie = r.setCookie.split(";")[0];
