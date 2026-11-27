@@ -115,6 +115,7 @@ app.use(asyncRoute(async (req, res, next) => {
   if (!u || !u.active) return res.status(401).json({ error: "Session expired or account disabled." });
   req.user = u; next();
 }));
+require("./cricket")(app, (req, res, next) => req.user ? next() : res.status(401).json({ error: "Please sign in." }));
 app.get("/api/health", asyncRoute(async (req, res) => {
   await pool.query("SELECT 1");
   res.json({ ok: true, app: "PLAYZONE", database: "connected" });
