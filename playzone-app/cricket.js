@@ -47,7 +47,7 @@ module.exports = function mountCricketRoutes(app, requireUser) {
   });
 
   router.get("/matches/:id", configured, async (req, res, next) => {
-    if (!/^\\d+$/.test(req.params.id)) return res.status(400).json({ error: "Invalid match ID." });
+    if (!/^\d+$/.test(req.params.id)) return res.status(400).json({ error: "Invalid match ID." });
     try {
       const data = await provider("/fixtures/" + req.params.id + "?include=localteam,visitorteam,league,season,venue,runs,scoreboards,batting,bowling,lineup,balls");
       res.json({ match: data });
