@@ -244,7 +244,6 @@ app.post("/api/accounts/:id/password", roles("admin", "master"), asyncRoute(asyn
   if (!Number.isInteger(id) || !passwordOKFormat(password)) return res.status(400).json({ error: "Password must be at least 10 characters." });
   const r = await pool.query("SELECT id,role,parent_id FROM users WHERE id=$1", [id]), target = r.rows[0];
   if (!target || target.role === "admin") return res.status(404).json({ error: "Account not found." });
-  if (req.user.role === "admin" && target.role !== "master") return res.status(403).json({ error: "Main Admin can manage Master accounts only." });
   if (req.user.role === "master" && (target.role !== "player" || Number(target.parent_id) !== Number(req.user.id))) return res.status(403).json({ error: "You can only manage your own players." });
   await inTransaction(async c => { await c.query("UPDATE users SET password_hash=$1 WHERE id=$2", [passwordHash(password), id]); await c.query("DELETE FROM sessions WHERE user_id=$1", [id]); });
   res.json({ ok: true });
