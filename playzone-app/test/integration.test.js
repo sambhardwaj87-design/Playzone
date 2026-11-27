@@ -122,12 +122,22 @@ test("admin/master/player hierarchy, points ledger and account controls", { skip
     method: "POST",
     body: JSON.stringify({ password: "AdminResetPassword123" })
   }, adminCookie);
-  assert.equal(r.response.status, 403, "Main Admin cannot reset Player passwords directly");
+  assert.equal(r.response.status, 200, "Main Admin can reset any Player password");
   r = await request(`/api/accounts/${playerId}/status`, {
     method: "POST",
     body: JSON.stringify({ active: false })
   }, adminCookie);
-  assert.equal(r.response.status, 403, "Main Admin cannot disable Player accounts directly");
+  assert.equal(r.response.status, 200, "Main Admin can disable any Player account");
+  r = await request("/api/login", {
+    method: "POST",
+    body: JSON.stringify({ username: "playerone", password: "AdminResetPassword123" })
+  });
+  assert.equal(r.response.status, 401, "disabled Player cannot sign in even with an Admin-reset password");
+  r = await request(`/api/accounts/${playerId}/status`, {
+    method: "POST",
+    body: JSON.stringify({ active: true })
+  }, adminCookie);
+  assert.equal(r.response.status, 200, "Main Admin can re-enable a Player account");
 
   r = await request(`/api/players/${playerId}/points`, {
     method: "POST",
