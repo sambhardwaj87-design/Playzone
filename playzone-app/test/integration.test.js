@@ -84,6 +84,13 @@ test("admin/master/player hierarchy, points ledger and account controls", { skip
   assert.equal(r.response.status, 201, JSON.stringify(r.body));
   const masterId = r.body.user.id;
 
+  // Main Admin must manage Masters, not create or operate Players directly.
+  r = await request("/api/players", {
+    method: "POST",
+    body: JSON.stringify({ displayName: "Admin-created Player", username: "adminplayer", password: "PlayerPassword789", startingBalance: 0, masterId })
+  }, adminCookie);
+  assert.equal(r.response.status, 403, "Main Admin cannot create Players directly");
+
   // Main Admin has an unlimited virtual-points reserve: allocations can
   // exceed the legacy one-million starter reserve without a cap.
   r = await request(`/api/admin/masters/${masterId}/allocation`, {
@@ -105,6 +112,22 @@ test("admin/master/player hierarchy, points ledger and account controls", { skip
   }, masterCookie);
   assert.equal(r.response.status, 201, JSON.stringify(r.body));
   const playerId = r.body.user.id;
+
+  r = await request(`/api/players/${playerId}/points`, {
+    method: "POST",
+    body: JSON.stringify({ amount: 10, note: "Admin direct adjustment should be blocked" })
+  }, adminCookie);
+  assert.equal(r.response.status, 403, "Main Admin cannot adjust Player points directly");
+  r = await request(`/api/accounts/${playerId}/password`, {
+    method: "POST",
+    body: JSON.stringify({ password: "AdminResetPassword123" })
+  }, adminCookie);
+  assert.equal(r.response.status, 403, "Main Admin cannot reset Player passwords directly");
+  r = await request(`/api/accounts/${playerId}/status`, {
+    method: "POST",
+    body: JSON.stringify({ active: false })
+  }, adminCookie);
+  assert.equal(r.response.status, 403, "Main Admin cannot disable Player accounts directly");
 
   r = await request(`/api/players/${playerId}/points`, {
     method: "POST",
