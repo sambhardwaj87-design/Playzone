@@ -235,7 +235,6 @@ app.post("/api/accounts/:id/status", roles("admin", "master"), asyncRoute(async 
   if (!Number.isInteger(id) || typeof active !== "boolean") return res.status(400).json({ error: "Invalid account status." });
   const r = await pool.query("SELECT id,role,parent_id FROM users WHERE id=$1", [id]), target = r.rows[0];
   if (!target || target.role === "admin") return res.status(404).json({ error: "Account not found." });
-  if (req.user.role === "admin" && target.role !== "master") return res.status(403).json({ error: "Main Admin can manage Master accounts only." });
   if (req.user.role === "master" && (target.role !== "player" || Number(target.parent_id) !== Number(req.user.id))) return res.status(403).json({ error: "You can only manage your own players." });
   await inTransaction(async c => { await c.query("UPDATE users SET active=$1 WHERE id=$2", [active, id]); if (!active) await c.query("DELETE FROM sessions WHERE user_id=$1", [id]); });
   res.json({ ok: true, active });
